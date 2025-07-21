@@ -128,13 +128,27 @@ const TakeQuiz = () => {
       setShowResults(true);
 
       // Show confetti for good scores
-      const percentage = result.data.evaluation.percentage;
+      const percentage = result.data.attempt.percentage;
       if (percentage >= 80) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
       }
 
-      toast.success(`Quiz completed! Score: ${percentage}%`);
+      // Enhanced success message for practice quizzes
+      if (result.data.isPracticeQuiz && result.data.savedToDashboard) {
+        toast.success(
+          `🎯 Practice quiz completed! Score: ${percentage}% - Saved to your dashboard!`,
+          {
+            duration: 4000,
+          }
+        );
+      } else if (result.data.isDemo) {
+        toast.success(
+          `Demo quiz completed! Score: ${percentage}% - Sign up to save your progress!`
+        );
+      } else {
+        toast.success(`Quiz completed! Score: ${percentage}%`);
+      }
     } else {
       toast.error(result.error || "Failed to submit quiz");
     }

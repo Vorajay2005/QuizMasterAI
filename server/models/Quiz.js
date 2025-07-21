@@ -87,8 +87,7 @@ const quizSchema = new mongoose.Schema(
 
 const quizAttemptSchema = new mongoose.Schema({
   quizId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Quiz",
+    type: mongoose.Schema.Types.Mixed, // Allow both ObjectId and String for practice quizzes
     required: true,
   },
   userId: {
@@ -118,6 +117,11 @@ const quizAttemptSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // Fields for practice quizzes (when quizId is string)
+  subject: String, // Store subject directly for practice quizzes
+  difficulty: String, // Store difficulty for practice quizzes
+  quizTitle: String, // Store title for practice quizzes
+  isPracticeQuiz: { type: Boolean, default: false }, // Flag to identify practice quizzes
   feedback: {
     strengths: [String],
     weaknesses: [String],

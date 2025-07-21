@@ -13,10 +13,43 @@ router.get("/dashboard", auth, async (req, res) => {
     const user = await User.findById(req.user._id).select("-password");
 
     // Get recent quiz attempts
+    console.log("🔍 Looking for attempts for user:", req.user._id);
+    const allAttempts = await QuizAttempt.find({ userId: req.user._id });
+    console.log("📊 Found total attempts:", allAttempts.length);
+
     const recentAttempts = await QuizAttempt.find({ userId: req.user._id })
-      .populate("quizId", "title subject")
       .sort({ completedAt: -1 })
       .limit(5);
+
+    console.log("📈 Recent attempts before population:", recentAttempts.length);
+
+    // For each attempt, handle population differently for practice vs regular quizzes
+    const populatedAttempts = [];
+    for (const attempt of recentAttempts) {
+      if (attempt.isPracticeQuiz || typeof attempt.quizId === "string") {
+        // Practice quiz - use stored data
+        populatedAttempts.push({
+          ...attempt.toObject(),
+          quizId: {
+            _id: attempt.quizId,
+            title: attempt.quizTitle,
+            subject: attempt.subject,
+          },
+        });
+      } else {
+        // Regular quiz - try to populate
+        try {
+          const populated = await QuizAttempt.findById(attempt._id).populate(
+            "quizId",
+            "title subject"
+          );
+          populatedAttempts.push(populated);
+        } catch (err) {
+          console.log("⚠️ Failed to populate attempt:", err.message);
+          populatedAttempts.push(attempt);
+        }
+      }
+    }
 
     // Calculate progress this week
     const weekAgo = new Date();
@@ -61,7 +94,7 @@ router.get("/dashboard", auth, async (req, res) => {
 
     res.json({
       user,
-      recentAttempts,
+      recentAttempts: populatedAttempts,
       thisWeekStats,
       achievements,
       topWeakTopics,

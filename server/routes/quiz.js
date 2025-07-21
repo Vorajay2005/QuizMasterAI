@@ -5,6 +5,29 @@ const User = require("../models/User");
 const { auth, optionalAuth } = require("../middleware/auth");
 const openaiService = require("../services/openaiService");
 
+// Helper function to evaluate answers correctly
+const evaluateAnswer = (userAnswer, correctAnswer, questionType) => {
+  const userNormalized = userAnswer.trim().toLowerCase();
+  const correctNormalized = correctAnswer.trim().toLowerCase();
+
+  if (questionType === "mcq") {
+    // Exact match for multiple choice
+    return userNormalized === correctNormalized;
+  } else if (questionType === "short" || questionType === "fillblank") {
+    // Empty answers are always wrong
+    if (userNormalized === "") {
+      return false;
+    }
+    // More flexible matching for short answers
+    return (
+      userNormalized.includes(correctNormalized) ||
+      correctNormalized.includes(userNormalized) ||
+      userNormalized === correctNormalized
+    );
+  }
+  return false;
+};
+
 // Demo quiz data for submission testing
 const demoQuizzes = [
   {
@@ -18,6 +41,40 @@ const demoQuizzes = [
         question: "What is the primary pigment involved in photosynthesis?",
         options: ["Chlorophyll", "Carotene", "Anthocyanin", "Xanthophyll"],
         correctAnswer: "Chlorophyll",
+      },
+      {
+        _id: "q2",
+        type: "mcq",
+        question:
+          "Which organelle is responsible for photosynthesis in plant cells?",
+        options: ["Mitochondria", "Nucleus", "Chloroplast", "Ribosome"],
+        correctAnswer: "Chloroplast",
+      },
+      {
+        _id: "q3",
+        type: "mcq",
+        question: "What is the chemical equation for photosynthesis?",
+        options: [
+          "6CO2 + 6H2O + light → C6H12O6 + 6O2",
+          "C6H12O6 + 6O2 → 6CO2 + 6H2O + ATP",
+          "6CO2 + 6O2 → C6H12O6 + 6H2O",
+          "C6H12O6 → 6CO2 + 6H2O",
+        ],
+        correctAnswer: "6CO2 + 6H2O + light → C6H12O6 + 6O2",
+      },
+      {
+        _id: "q4",
+        type: "short",
+        question: "Name the two main stages of photosynthesis.",
+        correctAnswer:
+          "Light-dependent reactions and light-independent reactions (Calvin cycle)",
+      },
+      {
+        _id: "q5",
+        type: "fillblank",
+        question:
+          "The light-dependent reactions occur in the _______ while the Calvin cycle occurs in the _______.",
+        correctAnswer: "thylakoids, stroma",
       },
     ],
   },
@@ -71,6 +128,25 @@ const demoQuizzes = [
           "Hydrogen bond",
         ],
         correctAnswer: "Ionic bond",
+      },
+      {
+        _id: "chem2",
+        type: "mcq",
+        question: "Which theory predicts molecular geometry?",
+        options: [
+          "Atomic theory",
+          "VSEPR theory",
+          "Kinetic theory",
+          "Quantum theory",
+        ],
+        correctAnswer: "VSEPR theory",
+      },
+      {
+        _id: "chem3",
+        type: "short",
+        question: "What is the octet rule?",
+        correctAnswer:
+          "Atoms tend to gain, lose, or share electrons to achieve a full outer shell of 8 electrons.",
       },
     ],
   },
@@ -393,8 +469,8 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
     const { answers, timeSpent } = value;
     const quizId = req.params.id;
 
-    // Handle demo quiz submission
-    if (quizId.startsWith("demo-") || !req.user) {
+    // Handle demo quiz submission (only for non-authenticated users)
+    if (quizId.startsWith("demo-") && !req.user) {
       console.log("🧪 Demo quiz submission:", quizId);
       console.log(
         "📊 Available demo quizzes:",
@@ -409,24 +485,77 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
 
       console.log("✅ Found demo quiz:", demoQuiz.title);
 
-      // Evaluate answers using demo quiz data
-      let evaluation;
-      try {
-        evaluation = await openaiService.evaluateAnswers(
-          demoQuiz.questions,
-          answers
+      // Evaluate answers locally for demo quizzes (more reliable than OpenAI for demos)
+      console.log("📝 Evaluating demo quiz answers locally...");
+
+      let correctCount = 0;
+      const detailedResults = [];
+
+      // Create a map of user answers by question ID
+      const answerMap = {};
+      answers.forEach((ans) => {
+        answerMap[ans.questionId] = ans.answer;
+      });
+
+      console.log(
+        "📝 Demo answers received:",
+        JSON.stringify(answers, null, 2)
+      );
+      console.log("🗺️ Demo answer map:", answerMap);
+
+      // Evaluate each question
+      demoQuiz.questions.forEach((question) => {
+        const userAnswer = answerMap[question._id] || "";
+        const correctAnswer = question.correctAnswer;
+
+        const isCorrect = evaluateAnswer(
+          userAnswer,
+          correctAnswer,
+          question.type
         );
-      } catch (error) {
-        console.log("⚠️ AI evaluation failed, using fallback:", error.message);
-        // Fallback evaluation for demo mode
-        evaluation = {
-          totalScore: Math.floor(Math.random() * demoQuiz.questions.length) + 1,
-          overallFeedback: "Great job completing the demo quiz!",
-          strengths: ["Good understanding of the concepts"],
-          weaknesses: [],
-          recommendations: ["Keep practicing to improve further!"],
-        };
-      }
+
+        if (isCorrect) {
+          correctCount++;
+        }
+
+        detailedResults.push({
+          questionId: question._id,
+          userAnswer: userAnswer,
+          correctAnswer: correctAnswer,
+          isCorrect: isCorrect,
+        });
+
+        console.log(
+          `Question ${question._id}: "${userAnswer}" vs "${correctAnswer}" = ${
+            isCorrect ? "✅" : "❌"
+          }`
+        );
+      });
+
+      console.log(
+        `🎯 Final score: ${correctCount}/${demoQuiz.questions.length}`
+      );
+
+      const evaluation = {
+        totalScore: correctCount,
+        overallFeedback:
+          correctCount >= demoQuiz.questions.length * 0.8
+            ? "Excellent work! You have a strong understanding of the material."
+            : correctCount >= demoQuiz.questions.length * 0.6
+            ? "Good job! Keep practicing to improve further."
+            : "Keep studying! Review the material and try again.",
+        strengths:
+          correctCount > 0 ? ["Shows understanding of key concepts"] : [],
+        weaknesses:
+          correctCount < demoQuiz.questions.length
+            ? ["Review incorrect answers"]
+            : [],
+        recommendations: [
+          "Continue practicing similar questions",
+          "Review explanations for missed questions",
+        ],
+        detailedResults: detailedResults,
+      };
 
       // Return demo results without saving to database
       return res.json({
@@ -453,7 +582,179 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
       });
     }
 
-    // Get the quiz with correct answers (for registered users)
+    // Handle demo/practice quiz submission for AUTHENTICATED users
+    if (quizId.startsWith("demo-") && req.user) {
+      console.log(
+        "📚 Practice quiz submission by authenticated user:",
+        req.user.email
+      );
+
+      const demoQuiz = demoQuizzes.find((q) => q._id === quizId);
+      if (!demoQuiz) {
+        console.log("❌ Practice quiz not found:", quizId);
+        return res.status(404).json({ error: "Practice quiz not found" });
+      }
+
+      console.log("✅ Found practice quiz:", demoQuiz.title);
+
+      // Evaluate answers locally for practice quizzes
+      console.log("📝 Evaluating practice quiz answers locally...");
+
+      let correctCount = 0;
+      const detailedResults = [];
+
+      // Create a map of user answers by question ID
+      const answerMap = {};
+      answers.forEach((ans) => {
+        answerMap[ans.questionId] = ans.answer;
+      });
+
+      console.log("📝 Received answers:", JSON.stringify(answers, null, 2));
+      console.log("🗺️ Answer map:", answerMap);
+
+      // Evaluate each question
+      demoQuiz.questions.forEach((question) => {
+        const userAnswer = answerMap[question._id] || "";
+        const correctAnswer = question.correctAnswer;
+
+        const isCorrect = evaluateAnswer(
+          userAnswer,
+          correctAnswer,
+          question.type
+        );
+
+        if (isCorrect) {
+          correctCount++;
+        }
+
+        detailedResults.push({
+          questionId: question._id,
+          userAnswer: userAnswer,
+          correctAnswer: correctAnswer,
+          isCorrect: isCorrect,
+        });
+
+        console.log(
+          `Question ${question._id}: "${userAnswer}" vs "${correctAnswer}" = ${
+            isCorrect ? "✅" : "❌"
+          }`
+        );
+      });
+
+      console.log(
+        `🎯 Practice quiz score: ${correctCount}/${demoQuiz.questions.length}`
+      );
+
+      const evaluation = {
+        totalScore: correctCount,
+        overallFeedback:
+          correctCount >= demoQuiz.questions.length * 0.8
+            ? "Excellent work! You have a strong understanding of the material."
+            : correctCount >= demoQuiz.questions.length * 0.6
+            ? "Good job! Keep practicing to improve further."
+            : "Keep studying! Review the material and try again.",
+        strengths:
+          correctCount > 0 ? ["Shows understanding of key concepts"] : [],
+        weaknesses:
+          correctCount < demoQuiz.questions.length
+            ? ["Review incorrect answers"]
+            : [],
+        recommendations: [
+          "Continue practicing similar questions",
+          "Review explanations for missed questions",
+        ],
+        detailedResults: detailedResults,
+      };
+
+      // ✅ SAVE PRACTICE QUIZ ATTEMPT TO DATABASE (This is the key difference!)
+      try {
+        const practiceAttempt = new QuizAttempt({
+          quizId: quizId, // Keep original demo ID for tracking
+          userId: req.user._id,
+          answers: answers.map((ans) => ({
+            questionId: ans.questionId,
+            userAnswer: ans.answer,
+            correctAnswer:
+              demoQuiz.questions.find((q) => q._id === ans.questionId)
+                ?.correctAnswer || "",
+            isCorrect:
+              detailedResults.find((r) => r.questionId === ans.questionId)
+                ?.isCorrect || false,
+          })),
+          score: evaluation.totalScore,
+          totalQuestions: demoQuiz.questions.length,
+          percentage: Math.round(
+            (evaluation.totalScore / demoQuiz.questions.length) * 100
+          ),
+          timeSpent: timeSpent || 0,
+          feedback: evaluation.overallFeedback,
+          subject: demoQuiz.subject || "General",
+          difficulty: demoQuiz.difficulty || "medium",
+          isPracticeQuiz: true, // Flag to identify practice vs real quizzes
+          quizTitle: demoQuiz.title,
+          completedAt: new Date(),
+        });
+
+        const savedAttempt = await practiceAttempt.save();
+        console.log(
+          "💾 Practice quiz attempt saved to database!",
+          savedAttempt._id
+        );
+        console.log("📊 Saved attempt details:", {
+          userId: savedAttempt.userId,
+          quizId: savedAttempt.quizId,
+          score: savedAttempt.score,
+          subject: savedAttempt.subject,
+          isPracticeQuiz: savedAttempt.isPracticeQuiz,
+        });
+
+        // Also add to user's quiz history
+        await User.findByIdAndUpdate(req.user._id, {
+          $push: {
+            quizHistory: {
+              quizId: quizId,
+              score: evaluation.totalScore,
+              totalQuestions: demoQuiz.questions.length,
+              percentage: Math.round(
+                (evaluation.totalScore / demoQuiz.questions.length) * 100
+              ),
+              completedAt: new Date(),
+              isPracticeQuiz: true,
+            },
+          },
+        });
+      } catch (dbError) {
+        console.error("❌ Error saving practice quiz attempt:", dbError);
+        // Continue without failing the request
+      }
+
+      // Return results with saved data indicator
+      return res.json({
+        message: "Practice quiz completed and saved to your profile!",
+        attempt: {
+          quizId: demoQuiz._id,
+          score: evaluation.totalScore || 0,
+          totalQuestions: demoQuiz.questions.length,
+          timeSpent,
+          percentage: Math.round(
+            ((evaluation.totalScore || 0) / demoQuiz.questions.length) * 100
+          ),
+          feedback: evaluation.overallFeedback,
+        },
+        evaluation,
+        personalizedFeedback: {
+          strengths: evaluation.strengths || ["Great job attempting the quiz!"],
+          weaknesses: evaluation.weaknesses || [],
+          recommendations: evaluation.recommendations || [
+            "Keep practicing to improve!",
+          ],
+        },
+        isPracticeQuiz: true,
+        savedToDashboard: true, // Indicator that this was saved
+      });
+    }
+
+    // Get the quiz with correct answers (for registered users taking real quizzes)
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
       return res.status(404).json({ error: "Quiz not found" });
@@ -583,10 +884,28 @@ router.get("/user/attempts", auth, async (req, res) => {
 // @access  Private
 router.get("/user/stats", auth, async (req, res) => {
   try {
-    const attempts = await QuizAttempt.find({ userId: req.user._id }).populate(
-      "quizId",
-      "subject"
-    );
+    // Get all attempts (both regular and practice quizzes)
+    const attempts = await QuizAttempt.find({ userId: req.user._id });
+
+    // For regular quizzes, try to populate quizId, but skip if it fails (for practice quizzes)
+    const populatedAttempts = [];
+    for (const attempt of attempts) {
+      if (attempt.isPracticeQuiz || typeof attempt.quizId === "string") {
+        // Practice quiz - use stored subject/title
+        populatedAttempts.push(attempt);
+      } else {
+        // Regular quiz - try to populate
+        try {
+          const populatedAttempt = await QuizAttempt.findById(
+            attempt._id
+          ).populate("quizId", "subject title");
+          populatedAttempts.push(populatedAttempt);
+        } catch (err) {
+          // If population fails, use the original attempt
+          populatedAttempts.push(attempt);
+        }
+      }
+    }
 
     const stats = {
       totalQuizzes: attempts.length,
@@ -609,18 +928,28 @@ router.get("/user/stats", auth, async (req, res) => {
         0
       );
 
-      // Subject breakdown
-      attempts.forEach((attempt) => {
-        const subject = attempt.quizId.subject;
-        if (!stats.subjectBreakdown[subject]) {
-          stats.subjectBreakdown[subject] = {
-            count: 0,
-            avgScore: 0,
-            totalScore: 0,
-          };
+      // Subject breakdown - handle both regular and practice quizzes
+      populatedAttempts.forEach((attempt) => {
+        let subject;
+        if (attempt.isPracticeQuiz || typeof attempt.quizId === "string") {
+          // Practice quiz - use stored subject
+          subject = attempt.subject;
+        } else {
+          // Regular quiz - use populated subject
+          subject = attempt.quizId?.subject;
         }
-        stats.subjectBreakdown[subject].count++;
-        stats.subjectBreakdown[subject].totalScore += attempt.percentage;
+
+        if (subject) {
+          if (!stats.subjectBreakdown[subject]) {
+            stats.subjectBreakdown[subject] = {
+              count: 0,
+              avgScore: 0,
+              totalScore: 0,
+            };
+          }
+          stats.subjectBreakdown[subject].count++;
+          stats.subjectBreakdown[subject].totalScore += attempt.percentage;
+        }
       });
 
       // Calculate average scores for subjects

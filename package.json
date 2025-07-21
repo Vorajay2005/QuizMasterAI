@@ -4,7 +4,8 @@
   "description": "AI-powered exam readiness checker for high school students",
   "main": "server.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "npm run cleanup && concurrently \"npm run server\" \"npm run client\"",
+    "cleanup": "lsof -ti:5173 | xargs kill -9 2>/dev/null || true && lsof -ti:5000 | xargs kill -9 2>/dev/null || true",
     "server": "nodemon server/server.js",
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build",
