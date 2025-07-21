@@ -1,0 +1,74 @@
+{
+  "name": "AI Exam Readiness Checker",
+  "short_name": "ExamAI",
+  "description": "Transform your study notes into personalized AI quizzes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity"],
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AI Quiz Dashboard"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Quiz Interface"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Quiz",
+      "short_name": "New Quiz",
+      "description": "Generate a new AI quiz from your notes",
+      "url": "/create-quiz",
+      "icons": [
+        {
+          "src": "/favicon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your progress and recent quizzes",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/favicon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
