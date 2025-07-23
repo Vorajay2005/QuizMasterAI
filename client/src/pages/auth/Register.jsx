@@ -131,7 +131,7 @@ const Register = () => {
                   <GraduationCap size={20} />
                 </div>
                 <select
-                  className="input pl-10 bg-white"
+                  className="input !pl-16 bg-white"
                   {...register("grade", {
                     required: "Grade level is required",
                   })}

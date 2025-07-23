@@ -88,6 +88,18 @@ const Home = () => {
               AI Exam Readiness Checker
             </h1>
 
+            {/* Motivational Tagline */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="mb-6"
+            >
+              <p className="text-2xl font-semibold text-yellow-200 font-display italic">
+                "Study Smarter, Not Harder"
+              </p>
+            </motion.div>
+
             <p className="text-xl mb-8 text-white/90 max-w-2xl mx-auto">
               Turn your study notes into personalized AI quizzes. Get instant
               feedback, track your progress, and improve your exam readiness.
