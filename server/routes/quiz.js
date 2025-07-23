@@ -4,6 +4,7 @@ const { Quiz, QuizAttempt } = require("../models/Quiz");
 const User = require("../models/User");
 const { auth, optionalAuth } = require("../middleware/auth");
 const openaiService = require("../services/openaiService");
+const documentParser = require("../services/documentParser");
 
 // Helper function to evaluate answers correctly
 const evaluateAnswer = (userAnswer, correctAnswer, questionType) => {
@@ -168,6 +169,146 @@ const demoQuizzes = [
 
 const router = express.Router();
 
+// @route   POST /api/quiz/upload-document
+// @desc    Upload and parse document for quiz generation
+// @access  Public
+router.post(
+  "/upload-document",
+  documentParser.upload.single("document"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      console.log("📄 Document upload received:", {
+        originalName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+
+      // Parse the document
+      console.log("🔄 Starting document parsing...");
+      const parseResult = await documentParser.parseDocument(req.file);
+      console.log("📋 Parse result:", {
+        success: parseResult.success,
+        error: parseResult.error,
+      });
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          error: parseResult.error,
+          details: `Failed to parse ${parseResult.originalName}`,
+        });
+      }
+
+      // Analyze document structure
+      const analysis = documentParser.analyzeDocumentStructure(
+        parseResult.content
+      );
+
+      // Extract key content for quiz generation
+      const keyContent = documentParser.extractKeyContent(parseResult.content);
+
+      // Auto-detect topic from content
+      let detectedTopic = "General";
+      try {
+        detectedTopic = openaiService.detectTopicDemo(parseResult.content);
+      } catch (error) {
+        console.log("Topic detection failed, using General");
+      }
+
+      res.json({
+        success: true,
+        message: "Document parsed successfully",
+        data: {
+          content: parseResult.content,
+          keyContent: keyContent,
+          originalName: parseResult.originalName,
+          fileType: parseResult.fileType,
+          wordCount: parseResult.wordCount,
+          detectedTopic: detectedTopic,
+          analysis: {
+            totalWords: analysis.totalWords,
+            totalSentences: analysis.totalSentences,
+            paragraphs: analysis.paragraphs,
+            difficulty: analysis.difficulty,
+            keyTerms: analysis.keyTerms.slice(0, 5), // Top 5 key terms
+            headings: analysis.headings.slice(0, 3), // Top 3 headings
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Document upload error:", error);
+
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          error: "File too large. Maximum size is 10MB.",
+          details: "Please compress your file or use a smaller document.",
+        });
+      }
+
+      if (error.code === "LIMIT_UNEXPECTED_FILE") {
+        return res.status(400).json({
+          error: "Invalid file upload.",
+          details: "Please ensure you're uploading a single file.",
+        });
+      }
+
+      if (error.message.includes("Unsupported file type")) {
+        return res.status(400).json({
+          error: error.message,
+          details: "Supported formats: .txt, .md, .pdf, .doc, .docx",
+        });
+      }
+
+      if (error.message.includes("Multiform")) {
+        return res.status(400).json({
+          error: "Invalid file format.",
+          details: "Please ensure your file is properly formatted.",
+        });
+      }
+
+      // Specific error messages for different parsing issues
+      if (
+        error.message.includes("empty") ||
+        error.message.includes("too short")
+      ) {
+        return res.status(400).json({
+          error: "Document content is insufficient.",
+          details:
+            "Please provide a document with at least 50 characters of meaningful content.",
+        });
+      }
+
+      if (
+        error.message.includes("corrupted") ||
+        error.message.includes("Invalid")
+      ) {
+        return res.status(400).json({
+          error: "Document appears to be corrupted.",
+          details:
+            "Please try uploading the file again or use a different format.",
+        });
+      }
+
+      if (error.message.includes("Password")) {
+        return res.status(400).json({
+          error: "Password-protected documents are not supported.",
+          details: "Please remove password protection and try again.",
+        });
+      }
+
+      res.status(500).json({
+        error: "Failed to process document",
+        details:
+          error.message ||
+          "An unexpected error occurred while processing your document.",
+      });
+    }
+  }
+);
+
 // Validation schemas
 const createQuizSchema = Joi.object({
   title: Joi.string().max(100).optional(),
@@ -222,6 +363,94 @@ router.post("/test-demo", async (req, res) => {
   }
 });
 
+// @route   POST /api/quiz/test-topic-detection
+// @desc    Test topic detection with user content
+// @access  Public
+router.post("/test-topic-detection", async (req, res) => {
+  try {
+    const { content, subject } = req.body;
+    console.log("🧪 Testing topic detection...");
+    console.log("Input content:", content?.substring(0, 100));
+    console.log("Input subject:", subject);
+
+    const detectedTopic = openaiService.detectTopicDemo(content);
+    console.log("Detected topic:", detectedTopic);
+
+    // Test quiz generation with detected topic
+    const demoQuiz = openaiService.generateDemoQuiz(
+      detectedTopic,
+      3,
+      ["mcq"],
+      "medium"
+    );
+
+    console.log("✅ Quiz generated with detected topic");
+    res.json({
+      success: true,
+      detectedTopic,
+      originalSubject: subject,
+      quiz: demoQuiz,
+    });
+  } catch (error) {
+    console.error("❌ Topic detection test failed:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+      detectedTopic: error.detectedTopic,
+    });
+  }
+});
+
+// @route   POST /api/quiz/test-db-save
+// @desc    Test saving quiz to database (requires auth)
+// @access  Private
+router.post("/test-db-save", auth, async (req, res) => {
+  try {
+    console.log("🧪 Testing database save...");
+
+    // Generate a simple demo quiz
+    const demoQuiz = openaiService.generateDemoQuiz(
+      "Biology",
+      2,
+      ["mcq"],
+      "medium"
+    );
+
+    console.log("Demo quiz generated:", demoQuiz);
+
+    // Try to save it to database
+    const quiz = new Quiz({
+      title: "Test Quiz",
+      description: "Test quiz for debugging",
+      createdBy: req.user._id,
+      subject: "Biology",
+      sourceContent: "Test content",
+      questions: demoQuiz.questions,
+      difficulty: "medium",
+      settings: {
+        timeLimit: 30,
+        randomizeQuestions: true,
+        showResultsImmediately: true,
+        allowRetake: true,
+      },
+      isPublic: false,
+    });
+
+    console.log("Quiz instance created, attempting to save...");
+    const savedQuiz = await quiz.save();
+    console.log("Quiz saved successfully with ID:", savedQuiz._id);
+
+    res.json({ success: true, quiz: savedQuiz });
+  } catch (error) {
+    console.error("❌ Database save test failed:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+  }
+});
+
 // @route   POST /api/quiz/generate
 // @desc    Generate a quiz from content using AI
 // @access  Private (or Public for demo mode)
@@ -229,9 +458,11 @@ router.post("/generate", optionalAuth, async (req, res) => {
   try {
     const { error, value } = createQuizSchema.validate(req.body);
     if (error) {
+      console.log("❌ Validation error:", error.details[0].message);
       return res.status(400).json({ error: error.details[0].message });
     }
 
+    console.log("✅ Validation passed");
     const {
       title,
       subject,
@@ -243,14 +474,28 @@ router.post("/generate", optionalAuth, async (req, res) => {
       isPublic,
     } = value;
 
+    console.log("📝 Extracted values:", {
+      title,
+      subject,
+      content: content?.substring(0, 50) + "...",
+      difficulty,
+      questionCount,
+      questionTypes,
+      timeLimit,
+      isPublic,
+    });
+
     // Auto-detect specific topic from content (optional - don't let this break quiz generation)
     let detectedTopic = subject;
     try {
+      console.log("Starting topic detection...");
       // Use demo topic detection to avoid OpenAI calls that may hang
       const topicResult = openaiService.detectTopicDemo(content);
+      console.log("Topic detection result:", topicResult);
       if (topicResult && topicResult.trim()) {
         detectedTopic = topicResult;
       }
+      console.log("Final detected topic:", detectedTopic);
     } catch (error) {
       console.log(
         "Topic detection failed, using provided subject:",
@@ -262,12 +507,14 @@ router.post("/generate", optionalAuth, async (req, res) => {
     // Generate quiz using OpenAI (with fallback for demo mode)
     let aiQuizData;
     try {
+      console.log("Attempting OpenAI quiz generation...");
       aiQuizData = await openaiService.generateQuiz(content, {
         difficulty,
         questionCount,
         questionTypes,
         subject: detectedTopic,
       });
+      console.log("OpenAI quiz generation successful");
     } catch (error) {
       console.error("AI quiz generation failed:", error.message);
 
@@ -277,9 +524,19 @@ router.post("/generate", optionalAuth, async (req, res) => {
         detectedTopic || subject,
         questionCount,
         questionTypes,
-        difficulty
+        difficulty,
+        content
       );
+      console.log("Demo quiz generation completed");
     }
+
+    console.log("Final aiQuizData:", {
+      title: aiQuizData?.title,
+      difficulty: aiQuizData?.difficulty,
+      questionsCount: aiQuizData?.questions?.length,
+      questionsType: typeof aiQuizData?.questions,
+      firstQuestion: aiQuizData?.questions?.[0],
+    });
 
     // For demo mode - if user is not logged in, just return the quiz data without saving
     if (!req.user) {
@@ -304,27 +561,100 @@ router.post("/generate", optionalAuth, async (req, res) => {
     }
 
     // Create quiz in database (for logged-in users)
-    const quiz = new Quiz({
+    console.log("Creating quiz for logged-in user:", req.user._id);
+    console.log("Quiz data structure:", {
       title: title || aiQuizData.title || `${detectedTopic} Quiz`,
-      description: `AI-generated quiz covering ${detectedTopic} concepts`,
-      createdBy: req.user._id,
-      subject: detectedTopic || subject,
-      sourceContent: content,
-      questions: aiQuizData.questions,
-      difficulty: aiQuizData.difficulty || difficulty,
-      settings: {
-        timeLimit,
-        randomizeQuestions: true,
-        showResultsImmediately: true,
-        allowRetake: true,
-      },
-      isPublic,
+      questionsCount: aiQuizData.questions?.length,
+      firstQuestion: aiQuizData.questions?.[0],
     });
 
-    const savedQuiz = await quiz.save();
+    // Validate aiQuizData before proceeding
+    console.log("🔍 Detailed aiQuizData inspection:", {
+      aiQuizData: aiQuizData,
+      type: typeof aiQuizData,
+      hasQuestions: !!aiQuizData?.questions,
+      questionsType: typeof aiQuizData?.questions,
+      isArray: Array.isArray(aiQuizData?.questions),
+      questionsLength: aiQuizData?.questions?.length,
+      keys: aiQuizData ? Object.keys(aiQuizData) : "null",
+    });
 
-    // Populate creator info for response
-    await savedQuiz.populate("createdBy", "name email");
+    if (
+      !aiQuizData ||
+      !aiQuizData.questions ||
+      !Array.isArray(aiQuizData.questions)
+    ) {
+      throw new Error(
+        `Invalid quiz data structure: ${JSON.stringify(aiQuizData)}`
+      );
+    }
+
+    if (aiQuizData.questions.length === 0) {
+      throw new Error("Quiz has no questions");
+    }
+
+    let quiz;
+    try {
+      console.log("Creating Quiz instance...");
+      console.log("Quiz data being passed to constructor:", {
+        title: title || aiQuizData.title || `${detectedTopic} Quiz`,
+        description: `AI-generated quiz covering ${detectedTopic} concepts`,
+        createdBy: req.user._id,
+        subject: detectedTopic || subject,
+        sourceContent: content?.substring(0, 100) + "...",
+        questionsCount: aiQuizData.questions?.length,
+        firstQuestion: aiQuizData.questions?.[0],
+        difficulty: aiQuizData.difficulty || difficulty,
+        settings: {
+          timeLimit,
+          randomizeQuestions: true,
+          showResultsImmediately: true,
+          allowRetake: true,
+        },
+        isPublic,
+      });
+
+      quiz = new Quiz({
+        title: title || aiQuizData.title || `${detectedTopic} Quiz`,
+        description: `AI-generated quiz covering ${detectedTopic} concepts`,
+        createdBy: req.user ? req.user._id : null,
+        subject: detectedTopic || subject,
+        sourceContent: content,
+        questions: aiQuizData.questions,
+        difficulty: aiQuizData.difficulty || difficulty,
+        settings: {
+          timeLimit,
+          randomizeQuestions: true,
+          showResultsImmediately: true,
+          allowRetake: true,
+        },
+        isPublic,
+      });
+      console.log("Quiz instance created successfully");
+    } catch (error) {
+      console.error("Error creating Quiz instance:", error);
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
+      throw new Error(`Failed to create quiz instance: ${error.message}`);
+    }
+
+    let savedQuiz;
+    try {
+      console.log("Attempting to save quiz to database...");
+      savedQuiz = await quiz.save();
+      console.log("Quiz saved successfully with ID:", savedQuiz._id);
+    } catch (error) {
+      console.error("Error saving quiz to database:", error);
+      throw new Error(`Failed to save quiz to database: ${error.message}`);
+    }
+
+    // Populate creator info for response (only if user exists)
+    if (savedQuiz.createdBy) {
+      await savedQuiz.populate("createdBy", "name email");
+    }
 
     res.status(201).json({
       message: "Quiz generated successfully!",
@@ -332,12 +662,29 @@ router.post("/generate", optionalAuth, async (req, res) => {
     });
   } catch (error) {
     console.error("Quiz generation error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+
+    // Check if it's a validation error
+    if (error.name === "ValidationError") {
+      console.error("MongoDB Validation Error:", error.errors);
+      return res.status(400).json({
+        error: "Quiz data validation failed",
+        details: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
 
     // Try to provide a fallback quiz even if there's an error
     try {
       console.log("Attempting emergency fallback quiz generation...");
       const fallbackQuiz = openaiService.generateDemoQuiz(
-        subject,
+        subject || "General",
         Math.min(questionCount || 5, 10),
         questionTypes || ["mcq"],
         difficulty || "medium"
@@ -365,12 +712,22 @@ router.post("/generate", optionalAuth, async (req, res) => {
       }
 
       // For logged-in users, save the fallback quiz
-      const quiz = new Quiz({
+      console.log("Creating fallback quiz for logged-in user");
+      console.log("Fallback quiz data:", {
         title: title || fallbackQuiz.title || `${subject} Practice Quiz`,
-        description: `Sample quiz covering ${subject} concepts`,
+        questionsCount: fallbackQuiz.questions?.length,
+        firstQuestion: fallbackQuiz.questions?.[0],
+      });
+
+      const quiz = new Quiz({
+        title:
+          title ||
+          fallbackQuiz.title ||
+          `${subject || "General"} Practice Quiz`,
+        description: `Sample quiz covering ${subject || "General"} concepts`,
         createdBy: req.user._id,
-        subject,
-        sourceContent: content,
+        subject: subject || "General",
+        sourceContent: content || "Sample content for practice quiz",
         questions: fallbackQuiz.questions,
         difficulty: fallbackQuiz.difficulty || difficulty,
         settings: {
@@ -382,7 +739,9 @@ router.post("/generate", optionalAuth, async (req, res) => {
         isPublic: isPublic || false,
       });
 
+      console.log("Attempting to save fallback quiz...");
       const savedQuiz = await quiz.save();
+      console.log("Fallback quiz saved successfully with ID:", savedQuiz._id);
       await savedQuiz.populate("createdBy", "name email");
 
       res.status(201).json({
@@ -843,8 +1202,16 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
       personalizedFeedback,
     });
   } catch (error) {
-    console.error("Quiz submission error:", error);
-    res.status(500).json({ error: "Server error during quiz submission" });
+    console.error("❌ Quiz submission error:", error);
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Request body:", JSON.stringify(req.body, null, 2));
+    console.error("❌ Request params:", req.params);
+    console.error("❌ User:", req.user ? req.user.email : "No user");
+    res.status(500).json({
+      error: "Server error during quiz submission",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 });
 

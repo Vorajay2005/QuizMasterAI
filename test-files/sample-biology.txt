@@ -1,0 +1,21 @@
+Introduction to Cell Biology
+
+The cell is the basic unit of life. All living organisms are composed of one or more cells, and all cells arise from pre-existing cells. This fundamental principle is known as the cell theory.
+
+Cell Structure:
+- Cell membrane: Controls what enters and exits the cell
+- Nucleus: Contains the cell's DNA and controls cellular activities
+- Cytoplasm: Gel-like substance where cellular processes occur
+- Mitochondria: Powerhouses of the cell that produce ATP
+- Ribosomes: Sites of protein synthesis
+
+Cell Division:
+Cells reproduce through a process called cell division. In eukaryotic cells, this occurs through mitosis, which results in two identical daughter cells.
+
+The cell cycle consists of:
+1. G1 phase: Cell growth and normal functions
+2. S phase: DNA replication
+3. G2 phase: Preparation for division
+4. M phase: Mitosis and cytokinesis
+
+Understanding cellular processes is crucial for comprehending how life functions at the most basic level.

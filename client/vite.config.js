@@ -7,5 +7,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true, // Fail if port 5173 is not available instead of trying another port
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

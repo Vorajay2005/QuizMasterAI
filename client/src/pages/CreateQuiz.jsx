@@ -47,15 +47,114 @@ const CreateQuiz = () => {
   const watchedQuestionTypes = watch("questionTypes");
 
   // File upload with react-dropzone
-  const onDrop = (acceptedFiles) => {
+  const onDrop = async (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setContent(e.target.result);
-        setStep(2);
-      };
-      reader.readAsText(file);
+      // Check if it's a simple text file
+      if (file.type === "text/plain" || file.type === "text/markdown") {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setContent(e.target.result);
+          setStep(2);
+        };
+        reader.readAsText(file);
+      } else {
+        // For PDF, DOC, DOCX files, upload to server for parsing
+        setIsGenerating(true);
+        try {
+          const formData = new FormData();
+          formData.append("document", file);
+
+          // Use fetch with proper error handling
+          const response = await fetch("/api/quiz/upload-document", {
+            method: "POST",
+            body: formData,
+            headers: {
+              // Don't set Content-Type for FormData, let browser set it with boundary
+            },
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = "Failed to upload document";
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorMessage = errorJson.error || errorMessage;
+            } catch {
+              errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            setContent(result.data.content);
+            // Auto-fill subject if detected
+            if (
+              result.data.detectedTopic &&
+              result.data.detectedTopic !== "General"
+            ) {
+              setValue("subject", result.data.detectedTopic);
+            }
+            // Auto-set difficulty if detected
+            if (result.data.analysis?.difficulty) {
+              setValue("difficulty", result.data.analysis.difficulty);
+            }
+            toast.success(
+              `Document parsed successfully! Detected topic: ${result.data.detectedTopic}`
+            );
+            setStep(2);
+          } else {
+            throw new Error(result.error || "Failed to parse document");
+          }
+        } catch (error) {
+          console.error("Document upload error:", error);
+
+          // Provide more specific error messages
+          let errorMessage = "Failed to upload document. Please try again.";
+
+          if (
+            error.message.includes("NetworkError") ||
+            error.message.includes("fetch")
+          ) {
+            errorMessage =
+              "Network error. Please check your connection and try again.";
+          } else if (error.message.includes("timeout")) {
+            errorMessage = "Upload timed out. Please try with a smaller file.";
+          } else if (
+            error.message.includes("413") ||
+            error.message.includes("too large")
+          ) {
+            errorMessage = "File is too large. Maximum size is 10MB.";
+          } else if (
+            error.message.includes("415") ||
+            error.message.includes("Unsupported")
+          ) {
+            errorMessage =
+              "Unsupported file type. Please use .txt, .md, .pdf, .doc, or .docx files.";
+          } else if (error.message.includes("400")) {
+            // For 400 errors, show the specific error message from the server
+            if (error.message.includes("PDF")) {
+              errorMessage =
+                error.message +
+                "\n\n💡 Try converting your PDF to a .txt or .docx file for better compatibility.";
+            } else {
+              errorMessage =
+                error.message ||
+                "Invalid file format. Please check your file and try again.";
+            }
+          } else if (error.message.includes("500")) {
+            errorMessage = "Server error. Please try again in a few moments.";
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+
+          toast.error(errorMessage);
+        } finally {
+          setIsGenerating(false);
+        }
+      }
     }
   };
 
@@ -64,12 +163,13 @@ const CreateQuiz = () => {
     accept: {
       "text/plain": [".txt"],
       "text/markdown": [".md"],
+      "application/pdf": [".pdf"],
       "application/msword": [".doc"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         [".docx"],
     },
     maxFiles: 1,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 10 * 1024 * 1024, // 10MB
   });
 
   const handleTextSubmit = () => {
@@ -217,15 +317,22 @@ VSEPR Theory:
         <div className="text-center">
           <LoadingSpinner size="xl" text="" />
           <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-2">
-            Creating Your Quiz... 🧠
+            {step === 1
+              ? "Processing Your Document... 📄"
+              : "Creating Your Quiz... 🧠"}
           </h2>
           <p className="text-gray-600 mb-4">
-            Our AI is analyzing your content and generating personalized
-            questions
+            {step === 1
+              ? "Extracting text from your document and analyzing content"
+              : "Our AI is analyzing your content and generating personalized questions"}
           </p>
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
             <Loader className="animate-spin" size={16} />
-            <span>This usually takes 10-30 seconds</span>
+            <span>
+              {step === 1
+                ? "This usually takes 5-15 seconds"
+                : "This usually takes 10-30 seconds"}
+            </span>
           </div>
         </div>
       </div>
@@ -319,8 +426,16 @@ VSEPR Theory:
                     Drag & drop your notes here, or click to browse
                   </p>
                   <p className="text-sm text-gray-500">
-                    Supports: .txt, .md, .doc, .docx (max 5MB)
+                    Supports: .txt, .md, .pdf, .doc, .docx (max 10MB)
                   </p>
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      <strong>📄 Enhanced PDF Support:</strong> Multiple parsing
+                      methods ensure compatibility with most PDF formats. If a
+                      PDF doesn't work, try copying the text and pasting it
+                      below.
+                    </p>
+                  </div>
                 </div>
               </div>
 

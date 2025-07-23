@@ -129,7 +129,7 @@ userSchema.methods.updateStudyStreak = function () {
 
 // Virtual for user's average score
 userSchema.virtual("averageScore").get(function () {
-  if (!this.quizHistory.length) return 0;
+  if (!this.quizHistory || !this.quizHistory.length) return 0;
 
   const totalScore = this.quizHistory.reduce((sum, quiz) => {
     return sum + (quiz.score / quiz.totalQuestions) * 100;
@@ -140,7 +140,7 @@ userSchema.virtual("averageScore").get(function () {
 
 // Virtual for total quizzes taken
 userSchema.virtual("totalQuizzes").get(function () {
-  return this.quizHistory.length;
+  return this.quizHistory ? this.quizHistory.length : 0;
 });
 
 userSchema.set("toJSON", { virtuals: true });

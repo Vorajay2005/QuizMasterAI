@@ -1,0 +1,188 @@
+🚀 Server running on port 5000
+🌍 Environment: development
+✅ Connected to MongoDB
+✅ User authenticated in optionalAuth: test3@example.com
+🔥 ROUTE HANDLER STARTED - /api/quiz/generate
+🚀 Starting quiz generation...
+Request body: {
+  title: 'My Biology Quiz',
+  subject: 'Biology',
+  content: 'Photosynthesis is the process by which plants convert light energy into chemical energy. This process occurs in chloroplasts and involves chlorophyll.',
+  difficulty: 'medium',
+  questionCount: 5,
+  questionTypes: [ 'mcq', 'short' ],
+  timeLimit: 30
+}
+User authenticated: true
+✅ Validation passed
+📝 Extracted values: {
+  title: 'My Biology Quiz',
+  subject: 'Biology',
+  content: 'Photosynthesis is the process by which plants conv...',
+  difficulty: 'medium',
+  questionCount: 5,
+  questionTypes: [ 'mcq', 'short' ],
+  timeLimit: 30,
+  isPublic: false
+}
+Starting topic detection...
+Topic detection result: Biology
+Final detected topic: Biology
+Attempting OpenAI quiz generation...
+🤖 generateQuiz called with: {
+  content: 'Photosynthesis is the process by which plants conv',
+  options: {
+    difficulty: 'medium',
+    questionCount: 5,
+    questionTypes: [ 'mcq', 'short' ],
+    subject: 'Biology'
+  }
+}
+🎯 OpenAI not configured, using demo mode
+🎯 generateDemoQuiz called with: {
+  subject: 'Biology',
+  questionCount: 5,
+  questionTypes: [ 'mcq', 'short' ],
+  difficulty: 'medium'
+}
+🎯 Call stack: [
+  '    at OpenAIService.generateDemoQuiz (/Users/jayvora/Desktop/AI Exam Readiness Checker/server/services/openaiService.js:232:35)',
+  '    at OpenAIService.generateQuiz (/Users/jayvora/Desktop/AI Exam Readiness Checker/server/services/openaiService.js:172:29)',
+  '    at /Users/jayvora/Desktop/AI Exam Readiness Checker/server/routes/quiz.js:375:40'
+]
+Starting question generation loop: {
+  questionCount: 5,
+  questionTypes: [ 'mcq', 'short' ],
+  subjectQuestionsKeys: [ 'mcq', 'short' ]
+}
+Generating question 1/5
+Question type: mcq
+Type questions length: 2
+Selected question: What is the primary function of chlorophyll in pho...
+Generating question 2/5
+Question type: short
+Type questions length: 1
+Selected question: Explain the process of cellular respiration in one...
+Generating question 3/5
+Question type: mcq
+Type questions length: 2
+Selected question: What is the primary function of chlorophyll in pho...
+Generating question 4/5
+Question type: short
+Type questions length: 1
+Selected question: Explain the process of cellular respiration in one...
+Generating question 5/5
+Question type: mcq
+Type questions length: 2
+Selected question: What is the primary function of chlorophyll in pho...
+generateDemoQuiz returning: {
+  title: 'Biology Quiz',
+  difficulty: 'medium',
+  questionsCount: 5,
+  firstQuestion: {
+    type: 'mcq',
+    question: 'What is the primary function of chlorophyll in photosynthesis?',
+    correctAnswer: 'To capture light energy',
+    explanation: 'Chlorophyll is the green pigment that captures light energy for photosynthesis.',
+    difficulty: 'medium',
+    topic: 'Biology',
+    keywords: [ 'To', 'capture', 'light' ],
+    options: [
+      'To absorb carbon dioxide',
+      'To capture light energy',
+      'To release oxygen',
+      'To produce glucose'
+    ]
+  }
+}
+✅ Demo quiz generated successfully: has data
+OpenAI quiz generation successful
+Final aiQuizData: {
+  title: 'Biology Quiz',
+  difficulty: 'medium',
+  questionsCount: 5,
+  questionsType: 'object',
+  firstQuestion: {
+    type: 'mcq',
+    question: 'What is the primary function of chlorophyll in photosynthesis?',
+    correctAnswer: 'To capture light energy',
+    explanation: 'Chlorophyll is the green pigment that captures light energy for photosynthesis.',
+    difficulty: 'medium',
+    topic: 'Biology',
+    keywords: [ 'To', 'capture', 'light' ],
+    options: [
+      'To absorb carbon dioxide',
+      'To capture light energy',
+      'To release oxygen',
+      'To produce glucose'
+    ]
+  }
+}
+Creating quiz for logged-in user: new ObjectId('6880647f66f7ed8538e70ad6')
+Quiz data structure: {
+  title: 'My Biology Quiz',
+  questionsCount: 5,
+  firstQuestion: {
+    type: 'mcq',
+    question: 'What is the primary function of chlorophyll in photosynthesis?',
+    correctAnswer: 'To capture light energy',
+    explanation: 'Chlorophyll is the green pigment that captures light energy for photosynthesis.',
+    difficulty: 'medium',
+    topic: 'Biology',
+    keywords: [ 'To', 'capture', 'light' ],
+    options: [
+      'To absorb carbon dioxide',
+      'To capture light energy',
+      'To release oxygen',
+      'To produce glucose'
+    ]
+  }
+}
+🔍 Detailed aiQuizData inspection: {
+  aiQuizData: {
+    title: 'Biology Quiz',
+    difficulty: 'medium',
+    questions: [ [Object], [Object], [Object], [Object], [Object] ]
+  },
+  type: 'object',
+  hasQuestions: true,
+  questionsType: 'object',
+  isArray: true,
+  questionsLength: 5,
+  keys: [ 'title', 'difficulty', 'questions' ]
+}
+Creating Quiz instance...
+Quiz data being passed to constructor: {
+  title: 'My Biology Quiz',
+  description: 'AI-generated quiz covering Biology concepts',
+  createdBy: new ObjectId('6880647f66f7ed8538e70ad6'),
+  subject: 'Biology',
+  sourceContent: 'Photosynthesis is the process by which plants convert light energy into chemical energy. This proces...',
+  questionsCount: 5,
+  firstQuestion: {
+    type: 'mcq',
+    question: 'What is the primary function of chlorophyll in photosynthesis?',
+    correctAnswer: 'To capture light energy',
+    explanation: 'Chlorophyll is the green pigment that captures light energy for photosynthesis.',
+    difficulty: 'medium',
+    topic: 'Biology',
+    keywords: [ 'To', 'capture', 'light' ],
+    options: [
+      'To absorb carbon dioxide',
+      'To capture light energy',
+      'To release oxygen',
+      'To produce glucose'
+    ]
+  },
+  difficulty: 'medium',
+  settings: {
+    timeLimit: 30,
+    randomizeQuestions: true,
+    showResultsImmediately: true,
+    allowRetake: true
+  },
+  isPublic: false
+}
+Quiz instance created successfully
+Attempting to save quiz to database...
+Quiz saved successfully with ID: new ObjectId('688069163df36aa698c095e2')

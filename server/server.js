@@ -35,11 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 mongoose
   .connect(
-    process.env.MONGODB_URI || "mongodb://localhost:27017/ai-exam-checker",
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }
+    process.env.MONGODB_URI || "mongodb://localhost:27017/ai-exam-checker"
   )
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));

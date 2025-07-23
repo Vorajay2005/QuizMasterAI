@@ -1,0 +1,32 @@
+Chemical Bonding and Molecular Structure
+
+Chemical bonds are the forces that hold atoms together in molecules and compounds. Understanding these bonds is essential for predicting molecular behavior and properties.
+
+Types of Chemical Bonds:
+
+1. Ionic Bonds:
+- Formed between metals and non-metals
+- Involve complete transfer of electrons
+- Result in charged ions (cations and anions)
+- Example: NaCl (sodium chloride)
+
+2. Covalent Bonds:
+- Formed between non-metal atoms
+- Involve sharing of electron pairs
+- Can be single, double, or triple bonds
+- Example: H2O (water), CO2 (carbon dioxide)
+
+3. Metallic Bonds:
+- Found in metals
+- Electrons form a "sea" around metal cations
+- Responsible for properties like conductivity and malleability
+
+Molecular Geometry:
+The shape of molecules is determined by the arrangement of electron pairs around the central atom. VSEPR (Valence Shell Electron Pair Repulsion) theory helps predict molecular shapes.
+
+Common molecular geometries include:
+- Linear (180°)
+- Trigonal planar (120°)
+- Tetrahedral (109.5°)
+- Trigonal bipyramidal (90° and 120°)
+- Octahedral (90°)
