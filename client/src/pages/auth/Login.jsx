@@ -121,20 +121,6 @@ const Login = () => {
             </p>
           </div>
         </motion.div>
-
-        {/* Demo credentials */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="card bg-blue-50 border-blue-200"
-        >
-          <div className="text-sm">
-            <h3 className="font-medium text-blue-800 mb-2">Demo Credentials</h3>
-            <p className="text-blue-600 mb-1">Email: demo@student.com</p>
-            <p className="text-blue-600">Password: demo123</p>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

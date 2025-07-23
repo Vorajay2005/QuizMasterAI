@@ -9,8 +9,6 @@ import {
   ArrowRight,
   Sparkles,
   BookOpen,
-  Users,
-  Award,
 } from "lucide-react";
 import useAuthStore from "../store/authStore";
 import Button from "../components/common/Button";
@@ -44,12 +42,6 @@ const Home = () => {
       description:
         "Get immediate results with explanations to reinforce your learning.",
     },
-  ];
-
-  const stats = [
-    { icon: Users, label: "Active Students", value: "10,000+" },
-    { icon: BookOpen, label: "Quizzes Generated", value: "50,000+" },
-    { icon: Award, label: "Success Rate", value: "95%" },
   ];
 
   const testimonials = [
@@ -177,46 +169,6 @@ const Home = () => {
 
       {/* Demo Section */}
       <DemoSection />
-
-      {/* Stats Section */}
-      <section className="section-padding bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 font-display mb-4">
-              Trusted by Students Worldwide
-            </h2>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="text-center"
-                >
-                  <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Icon size={32} className="text-primary-600" />
-                  </div>
-                  <div className="text-3xl font-bold text-gray-900 mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="text-gray-600">{stat.label}</div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
       {/* Testimonials Section */}
       <section className="section-padding bg-white">

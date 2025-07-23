@@ -1,9 +1,19 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Sparkles, Zap } from "lucide-react";
 import DemoQuizCard from "./DemoQuizCard";
 import { demoQuizzes } from "../../data/demoData";
+import useAuthStore from "../../store/authStore";
 
 const DemoSection = () => {
+  const { isAuthenticated } = useAuthStore();
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+
+  const handleTryAnotherDemo = () => {
+    // Cycle through all available demo quizzes
+    setCurrentQuizIndex((prevIndex) => (prevIndex + 1) % demoQuizzes.length);
+  };
   return (
     <section className="section-padding bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
       <div className="max-w-6xl mx-auto">
@@ -34,7 +44,7 @@ const DemoSection = () => {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            <DemoQuizCard quiz={demoQuizzes[0]} />
+            <DemoQuizCard quiz={demoQuizzes[currentQuizIndex]} />
           </motion.div>
 
           {/* Features Highlight */}
@@ -137,17 +147,31 @@ const DemoSection = () => {
               AI-powered quizzes.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold cursor-pointer"
-              >
-                Create Free Account
-              </motion.div>
+              {isAuthenticated ? (
+                <Link to="/dashboard">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold cursor-pointer"
+                  >
+                    Go to Dashboard
+                  </motion.div>
+                </Link>
+              ) : (
+                <Link to="/register">
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold cursor-pointer"
+                  >
+                    Create Free Account
+                  </motion.div>
+                </Link>
+              )}
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold cursor-pointer hover:bg-white hover:text-primary-600 transition-colors"
+                onClick={handleTryAnotherDemo}
               >
-                Try Another Demo
+                Try Another Demo ({currentQuizIndex + 1}/{demoQuizzes.length})
               </motion.div>
             </div>
           </div>

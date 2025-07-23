@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -36,6 +37,21 @@ const queryClient = new QueryClient({
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+// Demo Quiz Route component (allows demo quizzes without auth)
+const DemoQuizRoute = ({ children }) => {
+  const { isAuthenticated } = useAuthStore();
+  const location = useLocation();
+  const quizId = location.pathname.split("/").pop();
+
+  // Allow demo quizzes without authentication
+  if (quizId && quizId.startsWith("demo-")) {
+    return children;
+  }
+
+  // Regular quizzes require authentication
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
@@ -99,9 +115,9 @@ function App() {
               <Route
                 path="/quiz/:quizId"
                 element={
-                  <ProtectedRoute>
+                  <DemoQuizRoute>
                     <TakeQuiz />
-                  </ProtectedRoute>
+                  </DemoQuizRoute>
                 }
               />
               <Route

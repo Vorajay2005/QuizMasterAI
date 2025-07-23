@@ -1,7 +1,5 @@
 # 🧠 AI Exam Readiness Checker
 
-**Winner Project for Panda Hacks 2025** 🏆
-
 An intelligent study companion that transforms your notes into personalized quizzes using advanced AI, helping high school students study smarter and achieve better grades.
 
 ![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)
@@ -229,13 +227,7 @@ We welcome contributions! Please see our contributing guidelines:
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 🎖 Awards & Recognition
-
-- **🏆 Winner - Panda Hacks 2025**
-- **🎯 Best Use of AI for Education**
-- **💡 Most Innovative Student Tool**
-
-## 👥 Team
+## 👨‍💻 Development
 
 - **Full-Stack Development**: Built with ❤️ for students
 - **AI Integration**: Powered by OpenAI GPT-4
@@ -254,6 +246,6 @@ If this project helped you ace your exams, please ⭐ star this repo and share i
 
 ---
 
-**Made with 💙 for students, by students**
+**Made with 💙 for students**
 
-_"Study smarter, not harder" - AI Exam Readiness Checker Team_
+_"Study smarter, not harder"_
