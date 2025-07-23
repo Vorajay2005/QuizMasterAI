@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, BookOpen, Users, Clock, Star, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
@@ -113,8 +113,13 @@ const fallbackQuizzes = [
 ];
 
 const Browse = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryFromUrl = searchParams.get("category") || "";
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState(
+    categoryFromUrl || "All"
+  );
   const [quizzes, setQuizzes] = useState(fallbackQuizzes);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,6 +134,14 @@ const Browse = () => {
     "General",
     "History",
   ];
+
+  // Update selectedSubject when URL parameter changes
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get("category") || "";
+    if (categoryFromUrl && categoryFromUrl !== selectedSubject) {
+      setSelectedSubject(categoryFromUrl);
+    }
+  }, [searchParams]);
 
   // Load quizzes data
   useEffect(() => {
@@ -192,6 +205,17 @@ const Browse = () => {
       toast.error("Failed to refresh quizzes");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSubjectChange = (newSubject) => {
+    setSelectedSubject(newSubject);
+
+    // Update URL parameter
+    if (newSubject === "All") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ category: newSubject });
     }
   };
 
@@ -270,7 +294,7 @@ const Browse = () => {
                 <select
                   className="input bg-white"
                   value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  onChange={(e) => handleSubjectChange(e.target.value)}
                 >
                   {subjects.map((subject) => (
                     <option key={subject} value={subject}>

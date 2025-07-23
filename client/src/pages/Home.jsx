@@ -13,6 +13,7 @@ import {
   Award,
 } from "lucide-react";
 import useAuthStore from "../store/authStore";
+import Button from "../components/common/Button";
 import DemoSection from "../components/demo/DemoSection";
 
 const Home = () => {
@@ -285,41 +286,51 @@ const Home = () => {
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                topic: "Calculus",
+                topic: "Mathematics",
+                displayName: "Calculus",
                 icon: "📐",
                 color: "from-blue-100 to-blue-200",
                 textColor: "text-blue-800",
               },
               {
                 topic: "Biology",
+                displayName: "Biology",
                 icon: "🧬",
                 color: "from-green-100 to-green-200",
                 textColor: "text-green-800",
               },
               {
                 topic: "Chemistry",
+                displayName: "Chemistry",
                 icon: "⚗️",
                 color: "from-purple-100 to-purple-200",
                 textColor: "text-purple-800",
               },
             ].map((item, index) => (
-              <motion.div
+              <Link
                 key={item.topic}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.2 }}
-                className={`bg-gradient-to-br ${item.color} rounded-xl p-6 text-center`}
+                to={`/browse?category=${item.topic}`}
+                className="block"
               >
-                <div className="text-4xl mb-3">{item.icon}</div>
-                <h3 className={`text-xl font-semibold ${item.textColor} mb-2`}>
-                  {item.topic}
-                </h3>
-                <p className={`text-sm ${item.textColor}/80`}>
-                  AI detects and creates {item.topic.toLowerCase()}-specific
-                  questions
-                </p>
-              </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.2 }}
+                  className={`bg-gradient-to-br ${item.color} rounded-xl p-6 text-center hover:scale-105 transition-transform duration-200 cursor-pointer`}
+                >
+                  <div className="text-4xl mb-3">{item.icon}</div>
+                  <h3
+                    className={`text-xl font-semibold ${item.textColor} mb-2`}
+                  >
+                    {item.displayName}
+                  </h3>
+                  <p className={`text-sm ${item.textColor}/80`}>
+                    AI detects and creates {item.displayName.toLowerCase()}
+                    -specific questions
+                  </p>
+                </motion.div>
+              </Link>
             ))}
           </div>
 
@@ -330,10 +341,15 @@ const Home = () => {
             transition={{ delay: 0.8 }}
             className="text-center mt-8"
           >
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-6">
               + Many more subjects: Physics, History, Economics, Psychology, and
               more!
             </p>
+            <Link to="/browse">
+              <Button variant="outline" size="lg">
+                Browse All Quizzes
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </section>

@@ -393,7 +393,7 @@ const Dashboard = () => {
                   Recent Quiz Attempts
                 </h3>
                 <Link
-                  to="/analytics"
+                  to="/quiz-attempts"
                   className="text-primary-600 hover:text-primary-700 font-medium"
                 >
                   View All
@@ -405,20 +405,31 @@ const Dashboard = () => {
                   recentAttempts.map((attempt) => (
                     <div
                       key={attempt._id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      onClick={() => navigate(`/quiz-result/${attempt._id}`)}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center space-x-4">
                         <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center text-lg">
-                          {getTopicIcon(attempt.quizId?.subject)}
+                          {getTopicIcon(
+                            attempt.isPracticeQuiz
+                              ? attempt.subject
+                              : attempt.quizId?.subject
+                          )}
                         </div>
                         <div>
                           <h4 className="font-medium text-gray-900">
-                            {attempt.quizId?.title || "Quiz"}
+                            {attempt.isPracticeQuiz
+                              ? `${attempt.quizTitle} - ${attempt.subject} Quiz`
+                              : attempt.quizId?.title
+                              ? `${attempt.quizId.title} - ${attempt.quizId.subject} Quiz`
+                              : "Quiz"}
                           </h4>
                           <p className="text-sm text-gray-600">
                             {formatDate(attempt.completedAt)} •{" "}
                             <span className="font-medium text-blue-600">
-                              {attempt.quizId?.subject}
+                              {attempt.isPracticeQuiz
+                                ? attempt.subject
+                                : attempt.quizId?.subject}
                             </span>
                           </p>
                         </div>

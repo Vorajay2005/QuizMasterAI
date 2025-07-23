@@ -20,6 +20,8 @@ import TakeQuiz from "./pages/TakeQuiz";
 import Analytics from "./pages/Analytics";
 import Browse from "./pages/Browse";
 import Leaderboard from "./pages/Leaderboard";
+import QuizAttempts from "./pages/QuizAttempts";
+import QuizResult from "./pages/QuizResult";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -123,6 +125,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Leaderboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-attempts"
+                element={
+                  <ProtectedRoute>
+                    <QuizAttempts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-result/:attemptId"
+                element={
+                  <ProtectedRoute>
+                    <QuizResult />
                   </ProtectedRoute>
                 }
               />

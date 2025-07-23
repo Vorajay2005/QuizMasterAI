@@ -1744,6 +1744,55 @@ router.get("/public/list", async (req, res) => {
   }
 });
 
+// @route   GET /api/quiz/attempt/:attemptId
+// @desc    Get detailed quiz attempt information
+// @access  Private
+router.get("/attempt/:attemptId", auth, async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+
+    console.log("🔍 Fetching attempt details for:", attemptId);
+
+    // Find the attempt and ensure it belongs to the current user
+    let attempt = await QuizAttempt.findOne({
+      _id: attemptId,
+      userId: req.user._id,
+    });
+
+    if (!attempt) {
+      return res.status(404).json({
+        success: false,
+        error: "Quiz attempt not found",
+      });
+    }
+
+    // If it's a regular quiz (not practice), populate the quiz details
+    if (!attempt.isPracticeQuiz && attempt.quizId) {
+      try {
+        attempt = await QuizAttempt.findById(attemptId).populate({
+          path: "quizId",
+          select: "title subject questions difficulty",
+        });
+      } catch (err) {
+        console.log("Failed to populate quiz details, using original attempt");
+      }
+    }
+
+    console.log("✅ Attempt details fetched successfully");
+
+    res.json({
+      success: true,
+      data: attempt,
+    });
+  } catch (error) {
+    console.error("Get attempt details error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+});
+
 // @route   DELETE /api/quiz/:id
 // @desc    Delete a quiz (only creator can delete)
 // @access  Private
