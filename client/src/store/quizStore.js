@@ -147,9 +147,6 @@ const useQuizStore = create((set, get) => ({
         isLoading: false,
       });
 
-      // Trigger data refresh for dashboard and analytics
-      get().refreshUserData();
-
       // Trigger events for real-time updates across tabs/components
       setTimeout(() => {
         // Trigger localStorage event for other tabs
@@ -158,6 +155,19 @@ const useQuizStore = create((set, get) => ({
         // Trigger custom event for current tab
         window.dispatchEvent(new CustomEvent("quiz-completed"));
       }, 100);
+
+      // Trigger data refresh for dashboard and analytics (completely async)
+      setTimeout(() => {
+        try {
+          get()
+            .refreshUserData()
+            .catch((error) => {
+              console.log("Background refresh failed:", error.message);
+            });
+        } catch (error) {
+          console.log("Background refresh setup failed:", error.message);
+        }
+      }, 1000);
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -172,13 +182,17 @@ const useQuizStore = create((set, get) => ({
   },
 
   // Quiz history and stats
-  getUserAttempts: async (page = 1, limit = 10) => {
-    set({ isLoading: true, error: null });
+  getUserAttempts: async (page = 1, limit = 10, skipLoading = false) => {
+    if (!skipLoading) {
+      set({ isLoading: true, error: null });
+    }
     try {
       const response = await axiosInstance.get(
         `/quiz/user/attempts?page=${page}&limit=${limit}`
       );
-      set({ isLoading: false });
+      if (!skipLoading) {
+        set({ isLoading: false });
+      }
       return { success: true, data: response.data };
     } catch (error) {
       // Fallback to demo data
@@ -188,20 +202,28 @@ const useQuizStore = create((set, get) => ({
         page,
         pages: Math.ceil(demoAttempts.length / limit),
       };
-      set({ isLoading: false, error: null });
+      if (!skipLoading) {
+        set({ isLoading: false, error: null });
+      }
       return { success: true, data: demoData };
     }
   },
 
-  getUserStats: async () => {
-    set({ isLoading: true, error: null });
+  getUserStats: async (skipLoading = false) => {
+    if (!skipLoading) {
+      set({ isLoading: true, error: null });
+    }
     try {
       const response = await axiosInstance.get("/quiz/user/stats");
-      set({ isLoading: false });
+      if (!skipLoading) {
+        set({ isLoading: false });
+      }
       return { success: true, data: response.data };
     } catch (error) {
       // Fallback to demo stats
-      set({ isLoading: false, error: null });
+      if (!skipLoading) {
+        set({ isLoading: false, error: null });
+      }
       return { success: true, data: demoStats };
     }
   },
@@ -280,10 +302,21 @@ const useQuizStore = create((set, get) => ({
   refreshUserData: async () => {
     // This will be called after quiz submission to refresh cached data
     try {
-      // Force refresh of user stats and attempts
-      await Promise.all([get().getUserStats(), get().getUserAttempts(1, 5)]);
+      // Check if we have the necessary functions available
+      const store = get();
+      if (!store.getUserStats || !store.getUserAttempts) {
+        console.log("Store methods not available for refresh");
+        return;
+      }
+
+      // Force refresh of user stats and attempts (skip loading states)
+      await Promise.allSettled([
+        store.getUserStats(true), // skipLoading = true
+        store.getUserAttempts(1, 5, true), // skipLoading = true
+      ]);
     } catch (error) {
-      console.log("Failed to refresh user data:", error.message);
+      console.log("Background refresh failed:", error.message);
+      // Don't propagate errors from background refresh
     }
   },
 }));

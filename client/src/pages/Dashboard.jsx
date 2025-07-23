@@ -432,7 +432,7 @@ const Dashboard = () => {
                           {attempt.percentage}%
                         </div>
                         <div className="text-sm text-gray-500">
-                          {getGrade(attempt.percentage)}
+                          {getGrade(attempt.percentage, attempt.totalQuestions)}
                         </div>
                       </div>
                     </div>

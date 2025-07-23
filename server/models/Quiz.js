@@ -73,7 +73,7 @@ const quizSchema = new mongoose.Schema(
       averageTimeSpent: { type: Number, default: 0 },
       commonWrongAnswers: [
         {
-          questionId: mongoose.Schema.Types.ObjectId,
+          questionId: mongoose.Schema.Types.Mixed, // Allow both ObjectId and String for practice quizzes
           wrongAnswer: String,
           count: Number,
         },
@@ -97,7 +97,7 @@ const quizAttemptSchema = new mongoose.Schema({
   },
   answers: [
     {
-      questionId: mongoose.Schema.Types.ObjectId,
+      questionId: mongoose.Schema.Types.Mixed, // Allow both ObjectId and String for practice quizzes
       userAnswer: String,
       isCorrect: Boolean,
       timeSpent: Number, // seconds spent on this question

@@ -110,47 +110,59 @@ const TakeQuiz = () => {
   };
 
   const handleSubmit = async () => {
-    if (!isQuizComplete()) {
-      const unansweredCount =
-        currentQuiz.questions.length - Object.keys(userAnswers).length;
-      if (
-        !confirm(
-          `You have ${unansweredCount} unanswered questions. Submit anyway?`
-        )
-      ) {
-        return;
-      }
-    }
-
-    const result = await submitQuiz();
-
-    if (result.success) {
-      setShowResults(true);
-
-      // Show confetti for good scores
-      const percentage = result.data.attempt.percentage;
-      if (percentage >= 80) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5000);
+    try {
+      if (!isQuizComplete()) {
+        const unansweredCount =
+          currentQuiz.questions.length - Object.keys(userAnswers).length;
+        if (
+          !confirm(
+            `You have ${unansweredCount} unanswered questions. Submit anyway?`
+          )
+        ) {
+          return;
+        }
       }
 
-      // Enhanced success message for practice quizzes
-      if (result.data.isPracticeQuiz && result.data.savedToDashboard) {
-        toast.success(
-          `🎯 Practice quiz completed! Score: ${percentage}% - Saved to your dashboard!`,
-          {
-            duration: 4000,
-          }
-        );
-      } else if (result.data.isDemo) {
-        toast.success(
-          `Demo quiz completed! Score: ${percentage}% - Sign up to save your progress!`
-        );
+      console.log("🚀 Starting quiz submission...");
+      const result = await submitQuiz();
+      console.log("📊 Quiz submission result:", result);
+
+      if (result.success) {
+        console.log("✅ Quiz submission successful, processing results...");
+        setShowResults(true);
+
+        // Safely access percentage with fallback
+        const percentage = result.data?.attempt?.percentage || 0;
+        console.log("📈 Quiz percentage:", percentage);
+
+        // Show confetti for good scores
+        if (percentage >= 80) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 5000);
+        }
+
+        // Enhanced success message for practice quizzes
+        if (result.data?.isPracticeQuiz && result.data?.savedToDashboard) {
+          toast.success(
+            `🎯 Practice quiz completed! Score: ${percentage}% - Saved to your dashboard!`,
+            {
+              duration: 4000,
+            }
+          );
+        } else if (result.data?.isDemo) {
+          toast.success(
+            `Demo quiz completed! Score: ${percentage}% - Sign up to save your progress!`
+          );
+        } else {
+          toast.success(`Quiz completed! Score: ${percentage}%`);
+        }
       } else {
-        toast.success(`Quiz completed! Score: ${percentage}%`);
+        console.error("❌ Quiz submission failed:", result.error);
+        toast.error(result.error || "Failed to submit quiz");
       }
-    } else {
-      toast.error(result.error || "Failed to submit quiz");
+    } catch (error) {
+      console.error("🚨 Error in handleSubmit:", error);
+      toast.error("An unexpected error occurred while submitting the quiz");
     }
   };
 
@@ -246,7 +258,7 @@ const TakeQuiz = () => {
   // Results screen
   if (showResults && currentAttempt) {
     const percentage = currentAttempt.percentage;
-    const grade = getGrade(percentage);
+    const grade = getGrade(percentage, currentQuiz?.questions?.length);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">

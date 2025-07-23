@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     },
     quizHistory: [
       {
-        quizId: { type: mongoose.Schema.Types.ObjectId, ref: "Quiz" },
+        quizId: { type: mongoose.Schema.Types.Mixed, ref: "Quiz" }, // Allow both ObjectId and String for practice quizzes
         score: Number,
         totalQuestions: Number,
         completedAt: { type: Date, default: Date.now },

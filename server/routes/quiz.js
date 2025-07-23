@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { auth, optionalAuth } = require("../middleware/auth");
 const openaiService = require("../services/openaiService");
 const documentParser = require("../services/documentParser");
+const { getGradeInfo } = require("../utils/grading");
 
 console.log("🔄 Quiz routes file loaded at:", new Date().toISOString());
 
@@ -1074,6 +1075,12 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
         detailedResults: detailedResults,
       };
 
+      // Calculate grade information for demo quiz
+      const gradeInfo = getGradeInfo(
+        evaluation.totalScore || 0,
+        demoQuiz.questions.length
+      );
+
       // Return demo results without saving to database
       return res.json({
         message: "Demo quiz completed! Sign up to track your progress.",
@@ -1082,12 +1089,16 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
           score: evaluation.totalScore || 0,
           totalQuestions: demoQuiz.questions.length,
           timeSpent,
-          percentage: Math.round(
-            ((evaluation.totalScore || 0) / demoQuiz.questions.length) * 100
-          ),
+          percentage: gradeInfo.percentage,
+          letterGrade: gradeInfo.letterGrade,
+          gradeDescription: gradeInfo.description,
+          isPassing: gradeInfo.isPassing,
           feedback: evaluation.overallFeedback,
         },
-        evaluation,
+        evaluation: {
+          ...evaluation,
+          gradeInfo,
+        },
         personalizedFeedback: {
           strengths: evaluation.strengths || ["Great job attempting the quiz!"],
           weaknesses: evaluation.weaknesses || [],
@@ -1245,6 +1256,12 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
         // Continue without failing the request
       }
 
+      // Calculate grade information for practice quiz
+      const gradeInfo = getGradeInfo(
+        evaluation.totalScore || 0,
+        demoQuiz.questions.length
+      );
+
       // Return results with saved data indicator
       return res.json({
         message: "Practice quiz completed and saved to your profile!",
@@ -1253,12 +1270,16 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
           score: evaluation.totalScore || 0,
           totalQuestions: demoQuiz.questions.length,
           timeSpent,
-          percentage: Math.round(
-            ((evaluation.totalScore || 0) / demoQuiz.questions.length) * 100
-          ),
+          percentage: gradeInfo.percentage,
+          letterGrade: gradeInfo.letterGrade,
+          gradeDescription: gradeInfo.description,
+          isPassing: gradeInfo.isPassing,
           feedback: evaluation.overallFeedback,
         },
-        evaluation,
+        evaluation: {
+          ...evaluation,
+          gradeInfo,
+        },
         personalizedFeedback: {
           strengths: evaluation.strengths || ["Great job attempting the quiz!"],
           weaknesses: evaluation.weaknesses || [],
@@ -1394,10 +1415,25 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
       // Keep the default feedback if generation fails
     }
 
+    // Calculate grade information
+    const gradeInfo = getGradeInfo(
+      evaluation.totalScore || 0,
+      quiz.questions.length
+    );
+
     res.json({
       message: "Quiz submitted successfully!",
-      attempt,
-      evaluation,
+      attempt: {
+        ...attempt.toObject(),
+        percentage: gradeInfo.percentage,
+        letterGrade: gradeInfo.letterGrade,
+        gradeDescription: gradeInfo.description,
+        isPassing: gradeInfo.isPassing,
+      },
+      evaluation: {
+        ...evaluation,
+        gradeInfo,
+      },
       personalizedFeedback,
     });
   } catch (error) {
@@ -1522,10 +1558,25 @@ router.get("/user/attempts", auth, async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    // Add grade information to each attempt
+    const attemptsWithGrades = attempts.map((attempt) => {
+      const gradeInfo = getGradeInfo(
+        attempt.score || 0,
+        attempt.totalQuestions || 0
+      );
+      return {
+        ...attempt.toObject(),
+        letterGrade: gradeInfo.letterGrade,
+        gradeDescription: gradeInfo.description,
+        isPassing: gradeInfo.isPassing,
+        percentage: gradeInfo.percentage,
+      };
+    });
+
     const total = await QuizAttempt.countDocuments({ userId: req.user._id });
 
     res.json({
-      attempts,
+      attempts: attemptsWithGrades,
       pagination: {
         current: page,
         pages: Math.ceil(total / limit),
@@ -1624,11 +1675,19 @@ router.get("/user/stats", auth, async (req, res) => {
       stats.recentProgress = attempts
         .slice(0, 10)
         .reverse()
-        .map((attempt) => ({
-          date: attempt.completedAt,
-          score: attempt.percentage,
-          subject: attempt.quizId.subject,
-        }));
+        .map((attempt) => {
+          const gradeInfo = getGradeInfo(
+            attempt.score || 0,
+            attempt.totalQuestions || 0
+          );
+          return {
+            date: attempt.completedAt,
+            score: gradeInfo.percentage,
+            letterGrade: gradeInfo.letterGrade,
+            subject: attempt.quizId?.subject || attempt.subject,
+            isPassing: gradeInfo.isPassing,
+          };
+        });
 
       // Collect weak topics from recent attempts
       const recentWeakTopics = attempts

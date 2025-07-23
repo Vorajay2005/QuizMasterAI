@@ -68,19 +68,52 @@ export function getScoreColor(percentage) {
   return "text-error-600";
 }
 
-// Get grade based on score
-export function getGrade(percentage) {
-  if (percentage >= 97) return "A+";
-  if (percentage >= 93) return "A";
-  if (percentage >= 90) return "A-";
-  if (percentage >= 87) return "B+";
-  if (percentage >= 83) return "B";
-  if (percentage >= 80) return "B-";
-  if (percentage >= 77) return "C+";
-  if (percentage >= 73) return "C";
-  if (percentage >= 70) return "C-";
-  if (percentage >= 67) return "D+";
-  if (percentage >= 65) return "D";
+// Get grade based on score (Adaptive grading system)
+export function getGrade(percentage, totalQuestions = null) {
+  const score = Math.round(Number(percentage) || 0);
+
+  // If we have total questions, use adaptive grading
+  if (totalQuestions && totalQuestions <= 10) {
+    return getAdaptiveGrade(score, totalQuestions);
+  }
+
+  // Default percentage-based grading for larger quizzes
+  if (score >= 90) return "A"; // 90-100%
+  if (score >= 80) return "B"; // 80-89%
+  if (score >= 70) return "C"; // 70-79%
+  if (score >= 60) return "D"; // 60-69%
+  return "F"; // Below 60%
+}
+
+// Adaptive grading based on number of questions
+function getAdaptiveGrade(percentage, totalQuestions) {
+  if (totalQuestions <= 3) {
+    // For 1-3 questions: Very forgiving
+    if (percentage >= 100) return "A"; // 3/3, 2/2, 1/1
+    if (percentage >= 67) return "B"; // 2/3
+    if (percentage >= 33) return "C"; // 1/3
+    return "F"; // 0/3, 0/2, 0/1
+  } else if (totalQuestions <= 5) {
+    // For 4-5 questions: Moderately forgiving
+    if (percentage >= 90) return "A"; // 5/5, 4/4 (90%+)
+    if (percentage >= 80) return "B"; // 4/5 (80%)
+    if (percentage >= 60) return "C"; // 3/5 (60%)
+    if (percentage >= 40) return "D"; // 2/5 (40%)
+    return "F"; // 1/5, 0/5
+  } else if (totalQuestions <= 10) {
+    // For 6-10 questions: Standard but slightly forgiving
+    if (percentage >= 90) return "A"; // 90%+
+    if (percentage >= 75) return "B"; // 75%+
+    if (percentage >= 60) return "C"; // 60%+
+    if (percentage >= 45) return "D"; // 45%+
+    return "F"; // Below 45%
+  }
+
+  // Default for larger quizzes
+  if (percentage >= 90) return "A";
+  if (percentage >= 80) return "B";
+  if (percentage >= 70) return "C";
+  if (percentage >= 60) return "D";
   return "F";
 }
 
