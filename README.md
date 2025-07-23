@@ -4,7 +4,6 @@
 
 An intelligent study companion that transforms your notes into personalized quizzes using advanced AI, helping high school students study smarter and achieve better grades.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)
 ![React](https://img.shields.io/badge/react-18.3.1-blue)
 
@@ -55,14 +54,14 @@ An intelligent study companion that transforms your notes into personalized quiz
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- MongoDB (local or Atlas)
-- OpenAI API key
+- **Node.js** (v16 or higher)
+- **MongoDB** (local or Atlas)
+- **OpenAI API key**
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/your-username/ai-exam-readiness-checker.git
 cd "AI Exam Readiness Checker"
 ```
 
@@ -230,10 +229,6 @@ We welcome contributions! Please see our contributing guidelines:
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🎖 Awards & Recognition
 
 - **🏆 Winner - Panda Hacks 2025**
@@ -251,8 +246,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Need help? We're here for you!
 
 - 📧 **Email**: support@ai-exam-checker.com
-- 💬 **Discord**: [Join our community]()
-- 📝 **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
+- 📝 **Issues**: [GitHub Issues](https://github.com/your-username/ai-exam-readiness-checker/issues)
 
 ## 🌟 Show Your Support
 
