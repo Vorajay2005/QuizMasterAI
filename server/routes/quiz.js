@@ -6,6 +6,89 @@ const { auth, optionalAuth } = require("../middleware/auth");
 const openaiService = require("../services/openaiService");
 const documentParser = require("../services/documentParser");
 
+console.log("🔄 Quiz routes file loaded at:", new Date().toISOString());
+
+const router = express.Router();
+
+// Test route without auth to isolate the issue
+router.get("/debug-no-auth", (req, res) => {
+  console.log("🐛 Debug route without auth called");
+  res.json({
+    message: "Debug route working",
+    timestamp: new Date().toISOString(),
+    route: "no-auth",
+  });
+});
+
+// Test route to see if /user path works at all
+router.get("/user-simple", (req, res) => {
+  console.log("🧪 Simple user route called (no auth)");
+  res.json({
+    message: "Simple user route working",
+    timestamp: new Date().toISOString(),
+    route: "user-simple",
+  });
+});
+
+// Test the exact /user path without auth
+router.get("/user-no-auth", (req, res) => {
+  console.log("🧪 User route without auth called");
+  res.json({
+    message: "User route without auth working",
+    timestamp: new Date().toISOString(),
+    route: "user-no-auth",
+  });
+});
+
+// @route   GET /api/quiz/user
+// @desc    Get user's created quizzes
+// @access  Private
+// MOVED TO TOP TO ENSURE IT GETS REGISTERED FIRST
+router.get("/user", auth, async (req, res) => {
+  console.log("📋 User quizzes route called - MOVED TO TOP");
+  console.log("📋 Request URL:", req.url);
+  console.log("📋 Request method:", req.method);
+  try {
+    console.log("📋 User from auth:", req.user ? req.user.email : "No user");
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    console.log("📋 Searching for quizzes by user:", req.user._id);
+    const quizzes = await Quiz.find({ createdBy: req.user._id })
+      .select("title subject difficulty questionsCount createdAt analytics")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    console.log("📋 Found quizzes:", quizzes.length);
+    const total = await Quiz.countDocuments({ createdBy: req.user._id });
+
+    const result = {
+      quizzes,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total,
+      },
+    };
+
+    console.log("📋 Sending response:", {
+      quizzesCount: result.quizzes.length,
+    });
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Error in user quizzes route:", error);
+    console.error("❌ Error stack:", error.stack);
+    res.status(500).json({
+      error: "User route error",
+      details: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 // Helper function to evaluate answers correctly
 const evaluateAnswer = (userAnswer, correctAnswer, questionType) => {
   const userNormalized = userAnswer.trim().toLowerCase();
@@ -166,8 +249,6 @@ const demoQuizzes = [
     ],
   },
 ];
-
-const router = express.Router();
 
 // @route   POST /api/quiz/upload-document
 // @desc    Upload and parse document for quiz generation
@@ -456,10 +537,31 @@ router.post("/test-db-save", auth, async (req, res) => {
 // @access  Private (or Public for demo mode)
 router.post("/generate", optionalAuth, async (req, res) => {
   try {
+    console.log("🚀 Quiz generation request received");
+    console.log("📋 Request body:", {
+      title: req.body.title,
+      subject: req.body.subject,
+      contentLength: req.body.content?.length,
+      difficulty: req.body.difficulty,
+      questionCount: req.body.questionCount,
+      questionTypes: req.body.questionTypes,
+      timeLimit: req.body.timeLimit,
+      isPublic: req.body.isPublic,
+    });
+
     const { error, value } = createQuizSchema.validate(req.body);
     if (error) {
       console.log("❌ Validation error:", error.details[0].message);
-      return res.status(400).json({ error: error.details[0].message });
+      console.log("❌ Full validation error:", error.details);
+      return res.status(400).json({
+        error: error.details[0].message,
+        field: error.details[0].path?.join("."),
+        validationErrors: error.details.map((detail) => ({
+          field: detail.path?.join("."),
+          message: detail.message,
+          value: detail.context?.value,
+        })),
+      });
     }
 
     console.log("✅ Validation passed");
@@ -661,11 +763,23 @@ router.post("/generate", optionalAuth, async (req, res) => {
       quiz: savedQuiz,
     });
   } catch (error) {
-    console.error("Quiz generation error:", error);
-    console.error("Error details:", {
+    console.error("🚨 Quiz generation error:", error);
+    console.error("🚨 Error details:", {
       message: error.message,
       stack: error.stack,
       name: error.name,
+      code: error.code,
+    });
+    console.error("🚨 Request details:", {
+      url: req.url,
+      method: req.method,
+      user: req.user ? req.user.email : "No user",
+      body: {
+        title: req.body?.title,
+        subject: req.body?.subject,
+        contentLength: req.body?.content?.length,
+        questionTypes: req.body?.questionTypes,
+      },
     });
 
     // Check if it's a validation error
@@ -677,6 +791,32 @@ router.post("/generate", optionalAuth, async (req, res) => {
           field: key,
           message: error.errors[key].message,
         })),
+      });
+    }
+
+    // Check for specific error types
+    if (error.message.includes("JWT_SECRET")) {
+      return res.status(500).json({
+        error: "Server configuration error",
+        details: "Authentication service is not properly configured",
+      });
+    }
+
+    if (
+      error.message.includes("MongoDB") ||
+      error.message.includes("connection")
+    ) {
+      return res.status(503).json({
+        error: "Database connection error",
+        details: "Unable to connect to the database. Please try again later.",
+      });
+    }
+
+    if (error.message.includes("timeout") || error.code === "ETIMEDOUT") {
+      return res.status(504).json({
+        error: "Request timeout",
+        details:
+          "The quiz generation took too long. Please try with shorter content.",
       });
     }
 
@@ -820,9 +960,27 @@ router.get("/:id", optionalAuth, async (req, res) => {
 // @access  Private (or Public for demo mode)
 router.post("/:id/submit", optionalAuth, async (req, res) => {
   try {
+    console.log("🚀 Quiz submission request received");
+    console.log("📋 Quiz ID:", req.params.id);
+    console.log("📋 User:", req.user ? req.user.email : "No user (demo mode)");
+    console.log("📋 Request body:", {
+      answersCount: req.body.answers?.length,
+      timeSpent: req.body.timeSpent,
+      firstAnswer: req.body.answers?.[0],
+    });
+
     const { error, value } = submitAnswersSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      console.log("❌ Validation error:", error.details[0].message);
+      return res.status(400).json({
+        error: error.details[0].message,
+        field: error.details[0].path?.join("."),
+        validationErrors: error.details.map((detail) => ({
+          field: detail.path?.join("."),
+          message: detail.message,
+          value: detail.context?.value,
+        })),
+      });
     }
 
     const { answers, timeSpent } = value;
@@ -1114,7 +1272,16 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
     }
 
     // Get the quiz with correct answers (for registered users taking real quizzes)
-    const quiz = await Quiz.findById(req.params.id);
+    let quiz;
+    try {
+      quiz = await Quiz.findById(req.params.id);
+    } catch (error) {
+      if (error.name === "CastError") {
+        return res.status(404).json({ error: "Quiz not found" });
+      }
+      throw error;
+    }
+
     if (!quiz) {
       return res.status(404).json({ error: "Quiz not found" });
     }
@@ -1155,11 +1322,11 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
     const user = await User.findById(req.user._id);
     user.quizHistory.push({
       quizId: quiz._id,
-      score: attempt.score,
-      totalQuestions: attempt.totalQuestions,
-      completedAt: attempt.completedAt,
-      timeSpent: attempt.timeSpent,
-      weakTopics: evaluation.overallFeedback.weakTopics,
+      score: attempt.score || 0,
+      totalQuestions: attempt.totalQuestions || quiz.questions.length,
+      completedAt: attempt.completedAt || new Date(),
+      timeSpent: attempt.timeSpent || 0,
+      weakTopics: evaluation.overallFeedback?.weakTopics || [],
     });
 
     // Update study streak
@@ -1168,31 +1335,63 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
 
     // Update quiz analytics
     quiz.analytics.totalAttempts += 1;
-    const currentAvg = quiz.analytics.averageScore;
+    const currentAvg = quiz.analytics.averageScore || 0;
     const totalAttempts = quiz.analytics.totalAttempts;
-    quiz.analytics.averageScore =
-      (currentAvg * (totalAttempts - 1) + evaluation.percentage) /
-      totalAttempts;
+    const currentScore = evaluation.totalScore || 0;
+    const currentPercentage = Math.round(
+      (currentScore / quiz.questions.length) * 100
+    );
+
+    console.log("📊 Analytics calculation:", {
+      currentAvg,
+      totalAttempts,
+      currentScore,
+      totalQuestions: quiz.questions.length,
+      currentPercentage,
+      evaluationPercentage: evaluation.percentage,
+    });
+
+    // Ensure we don't get NaN
+    const newAverage =
+      totalAttempts === 1
+        ? currentPercentage
+        : (currentAvg * (totalAttempts - 1) + currentPercentage) /
+          totalAttempts;
+
+    quiz.analytics.averageScore = isNaN(newAverage)
+      ? currentPercentage
+      : newAverage;
+
+    console.log("📊 New average score:", quiz.analytics.averageScore);
 
     await quiz.save();
 
     // Generate personalized recommendations
-    let personalizedFeedback = {};
+    let personalizedFeedback = {
+      strengths: ["Great job completing the quiz!"],
+      weaknesses: [],
+      recommendations: ["Keep practicing to improve your skills!"],
+    };
+
     try {
+      const currentPercentage = Math.round(
+        (evaluation.totalScore / quiz.questions.length) * 100
+      );
       personalizedFeedback = await openaiService.generatePersonalizedFeedback(
         {
-          averageScore: user.averageScore,
-          totalQuizzes: user.totalQuizzes,
-          studyStreak: user.studyStreak.current,
+          averageScore: user.averageScore || 0,
+          totalQuizzes: user.totalQuizzes || 0,
+          studyStreak: user.studyStreak?.current || 0,
         },
         {
-          percentage: evaluation.percentage,
-          weakTopics: evaluation.overallFeedback.weakTopics,
-          subject: quiz.subject,
+          percentage: currentPercentage,
+          weakTopics: evaluation.overallFeedback?.weakTopics || [],
+          subject: quiz.subject || "General",
         }
       );
     } catch (err) {
       console.error("Failed to generate personalized feedback:", err);
+      // Keep the default feedback if generation fails
     }
 
     res.json({
@@ -1202,15 +1401,108 @@ router.post("/:id/submit", optionalAuth, async (req, res) => {
       personalizedFeedback,
     });
   } catch (error) {
-    console.error("❌ Quiz submission error:", error);
-    console.error("❌ Error stack:", error.stack);
-    console.error("❌ Request body:", JSON.stringify(req.body, null, 2));
-    console.error("❌ Request params:", req.params);
-    console.error("❌ User:", req.user ? req.user.email : "No user");
+    console.error("🚨 Quiz submission error:", error);
+    console.error("🚨 Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+    });
+    console.error("🚨 Request details:", {
+      quizId: req.params.id,
+      user: req.user ? req.user.email : "No user",
+      answersCount: req.body.answers?.length,
+      timeSpent: req.body.timeSpent,
+    });
+
+    // Check for specific error types
+    if (error.name === "ValidationError") {
+      console.error("MongoDB Validation Error:", error.errors);
+      return res.status(400).json({
+        error: "Quiz submission data validation failed",
+        details: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        error: "Invalid quiz ID format",
+        details: "The quiz ID provided is not valid",
+      });
+    }
+
+    if (error.message.includes("Quiz not found")) {
+      return res.status(404).json({
+        error: "Quiz not found",
+        details: "The quiz you're trying to submit answers for doesn't exist",
+      });
+    }
+
+    if (error.message.includes("User not found")) {
+      return res.status(401).json({
+        error: "Authentication required",
+        details: "Please log in to submit quiz answers",
+      });
+    }
+
+    if (
+      error.message.includes("OpenAI") ||
+      error.message.includes("evaluation")
+    ) {
+      return res.status(503).json({
+        error: "Quiz evaluation service temporarily unavailable",
+        details: "Please try submitting your answers again in a few moments",
+      });
+    }
+
+    if (error.message.includes("timeout") || error.code === "ETIMEDOUT") {
+      return res.status(504).json({
+        error: "Request timeout",
+        details: "Quiz submission took too long. Please try again.",
+      });
+    }
+
+    if (
+      error.message.includes("MongoDB") ||
+      error.message.includes("connection")
+    ) {
+      return res.status(503).json({
+        error: "Database connection error",
+        details: "Unable to save your quiz results. Please try again later.",
+      });
+    }
+
+    // Generic server error
     res.status(500).json({
       error: "Server error during quiz submission",
       details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "An unexpected error occurred while processing your quiz submission. Please try again.",
+    });
+  }
+});
+
+// @route   GET /api/quiz/user/test
+// @desc    Test route to isolate auth issues
+// @access  Private
+router.get("/user/test", auth, async (req, res) => {
+  console.log("🧪 Test route called");
+  try {
+    console.log("🧪 User from auth:", req.user ? req.user.email : "No user");
+    res.json({
+      message: "Test route working",
+      user: req.user ? req.user.email : "No user",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("🧪 Test route error:", error);
+    res.status(500).json({
+      error: "Test route error",
+      details: error.message,
     });
   }
 });

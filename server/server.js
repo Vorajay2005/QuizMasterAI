@@ -56,10 +56,19 @@ app.get("/api/health", (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("🚨 Global error handler triggered!");
+  console.error("🚨 Error message:", err.message);
+  console.error("🚨 Error stack:", err.stack);
+  console.error("🚨 Request URL:", req.url);
+  console.error("🚨 Request method:", req.method);
+  console.error("🚨 User:", req.user ? req.user.email : "No user");
+
   res.status(500).json({
-    error: "Something went wrong!",
-    ...(process.env.NODE_ENV === "development" && { details: err.message }),
+    error: "Global error handler",
+    details: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
   });
 });
 
